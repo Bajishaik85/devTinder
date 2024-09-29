@@ -11,7 +11,7 @@ app.post("/signup", async (req, res) => {
   try {
     await user.save();
     res.send("User Added");
-  } catch (error) {
+  } catch (err) {
     res.status(400).send("Error in saving the data:" + err.message);
   }
 });
@@ -65,18 +65,38 @@ app.delete("/user", async (req, res) => {
       }
     }
   } catch (err) {
-    res.status(400).send("Error Occured" + err.message);
+    res.status(400).send("Error Occured " + err.message);
   }
 });
-app.patch("/user", async (req, res) => {
-  const userId = req.body.userId;
+app.patch("/user/:userId", async (req, res) => {
+  const userId = req.params?.userId;
   const data = req.body;
-  console.log(data);
+
   try {
-    const user = await User.findByIdAndUpdate({ _id: userId }, data);
+    const ALLOWED_UPDATES = [
+      "userId",
+      "photoUrl",
+      "about",
+      "gender",
+      "age",
+      "skills",
+    ];
+    const isUpdateAllowed = Object.keys(data).every((k) =>
+      ALLOWED_UPDATES.includes(k)
+    );
+    if (!isUpdateAllowed) {
+      throw new Error("Update Not Allowed");
+    }
+    if (data?.skills.lenght > 50) {
+      throw new Error("Skills are more than 50");
+    }
+    const user = await User.findByIdAndUpdate({ _id: userId }, data, {
+      returnDocument: "after",
+      runValidators: true,
+    });
     res.send("User Updated");
-  } catch (error) {
-    res.status(400).send("Error Occured" + err.message);
+  } catch (err) {
+    res.status(400).send("Error Occured " + err.message);
   }
 });
 
