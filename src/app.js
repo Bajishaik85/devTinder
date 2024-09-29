@@ -1,32 +1,29 @@
 const express = require("express");
-console.log("Starting New Project!");
+const connectDb = require("./config/database");
 const app = express();
+const User = require("./models/user");
+app.post("/signup", async (req, res) => {
+  const user = new User({
+    firstName: "Baji",
+    lastName: "Shaik",
+    emailId: "baji@shaik.com",
+    age: 22,
+    gender: "Male",
+  });
 
-//order of the API matters while making a request
-
-app.get("/user/:userId/:name/:password", (req, res) => {
-  console.log(req.params);
-  res.send("Data Fetched!");
+  try {
+    await user.save();
+    res.send("User Added");
+  } catch (error) {
+    res.status(400).send("Error in saving the data:" + err.message);
+  }
 });
 
-//This will only handle GET call to /user
-app.get("/user", (req, res) => {
-  res.send({ firstName: "Baji Shaik", Course: "Node JS" });
-});
-app.post("/user", (req, res) => {
-  res.send("Data Saved Succesfully to the Database");
-});
-
-app.delete("/user", (req, res) => {
-  res.send("User Deleted!");
-});
-
-//this will match all the HTTP method API calls
-app.use("/test", (req, res) => {
-  res.send("Hello From Test");
-});
-
-app.use("/", (req, res) => {
-  res.send("Hello From Server");
-});
-app.listen(5000, () => console.log("Server Running On Port 5000"));
+connectDb()
+  .then(() => {
+    app.listen(5000, () => console.log("Server Running On Port 5000"));
+    console.log("Db Connected");
+  })
+  .catch((err) => {
+    console.log("Error in Connection");
+  });
