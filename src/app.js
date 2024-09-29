@@ -2,7 +2,7 @@ const express = require("express");
 console.log("Starting New Project!");
 const app = express();
 
-//oder of the API matters while making a request
+//order of the API matters while making a request
 
 app.get("/user/:userId/:name/:password", (req, res) => {
   console.log(req.params);
