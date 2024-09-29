@@ -2,6 +2,13 @@ const express = require("express");
 console.log("Starting New Project!");
 const app = express();
 
+//oder of the API matters while making a request
+
+app.get("/user/:userId/:name/:password", (req, res) => {
+  console.log(req.params);
+  res.send("Data Fetched!");
+});
+
 //This will only handle GET call to /user
 app.get("/user", (req, res) => {
   res.send({ firstName: "Baji Shaik", Course: "Node JS" });
