@@ -1,103 +1,74 @@
 const express = require("express");
 const connectDb = require("./config/database");
+const { validateSignUpData } = require("./utils/validation");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const app = express();
-
 const User = require("./models/user");
+const { userAuth } = require("./middlewares/auth");
 
 app.use(express.json());
-app.post("/signup", async (req, res) => {
-  const user = new User(req.body);
+app.use(cookieParser());
 
+app.post("/signup", async (req, res) => {
   try {
+    //Validation of Data
+    validateSignUpData(req);
+    //Hash the password
+    const { firstName, lastName, emailId, password } = req.body;
+    const passwordHash = await bcrypt.hash(password, 10);
+    //Creating a new User instance of User Model
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: passwordHash,
+    });
     await user.save();
     res.send("User Added");
   } catch (err) {
     res.status(400).send("Error in saving the data:" + err.message);
   }
 });
-//Get user by Email
-app.get("/user", async (req, res) => {
-  const userEmail = req.body.emailId;
-
+app.post("/login", async (req, res) => {
   try {
-    const user = await User.findOne({ emailId: userEmail });
+    //Hash the password
+    const { emailId, password } = req.body;
+    const user = await User.findOne({ emailId: emailId });
     if (!user) {
-      res.status(404).send("User Not FOund");
-    } else {
-      res.send(user);
+      throw new Error("Email not present in the DB");
     }
-
-    // if (users.length === 0) {
-    //   res.status(404).send("User Not FOund");
-    // } else {
-    //   res.send(users);
-    // }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (isPasswordValid) {
+      const token = await user.getJWT();
+      const cookie = res.cookie("token", token, {
+        expires: new Date(Date.now() + 52 * 3600000),
+      });
+      res.send("User LoggedIn Successfully");
+    } else {
+      throw new Error("Invalid Credentials");
+    }
   } catch (err) {
-    res.status(400).send("Error Occured" + err.message);
+    res.status(400).send("Error in saving the data:" + err.message);
   }
 });
 
-app.get("/feed", async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
   try {
-    const feedData = await User.find({});
-    if (feedData.length === 0) {
-      res.status(404).send("No Feed Found");
-    } else {
-      res.send(feedData);
+    const user = req.user;
+    if (!user) {
+      throw new Error("User does not exist");
     }
+    res.send(user);
   } catch (err) {
-    res.status(400).send("Error Occured" + err.message);
+    res.status(400).send("Error Occured:" + err.message);
   }
 });
-app.delete("/user", async (req, res) => {
-  const userId = req.body.userId;
-  try {
-    if (!userId) {
-      res.status(404).send("No Id Found");
-    } else {
-      const user = await User.findByIdAndDelete({ _id: userId });
-      if (!user) {
-        // If no user is found to delete, return a 404 response
-        res.status(404).send("User Not Found");
-      } else {
-        // If a user was found and deleted, send success response
-        res.send("User Deleted");
-      }
-    }
-  } catch (err) {
-    res.status(400).send("Error Occured " + err.message);
-  }
-});
-app.patch("/user/:userId", async (req, res) => {
-  const userId = req.params?.userId;
-  const data = req.body;
 
-  try {
-    const ALLOWED_UPDATES = [
-      "userId",
-      "photoUrl",
-      "about",
-      "gender",
-      "age",
-      "skills",
-    ];
-    const isUpdateAllowed = Object.keys(data).every((k) =>
-      ALLOWED_UPDATES.includes(k)
-    );
-    if (!isUpdateAllowed) {
-      throw new Error("Update Not Allowed");
-    }
-    if (data?.skills.lenght > 50) {
-      throw new Error("Skills are more than 50");
-    }
-    const user = await User.findByIdAndUpdate({ _id: userId }, data, {
-      returnDocument: "after",
-      runValidators: true,
-    });
-    res.send("User Updated");
-  } catch (err) {
-    res.status(400).send("Error Occured " + err.message);
-  }
+app.post("/sendConnectionRequest", userAuth, async (req, res) => {
+  const user = req.user;
+  console.log(user.firstName + " Sent you a request");
 });
 
 connectDb()
